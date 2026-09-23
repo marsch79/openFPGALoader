@@ -198,6 +198,12 @@ Lattice:
     Memory: OK
     Flash: OK
 
+  - Description: CrossLinkU-NX
+    Model: LIFCL-33U
+    URL: https://www.latticesemi.com/en/Products/FPGAandCPLD/CrossLink-NX
+    Memory: OK
+    Flash: OK
+
   - Description: ECP3
     Model: LFE3-70E
     URL: https://www.latticesemi.com/Products/FPGAandCPLD/LatticeECP3

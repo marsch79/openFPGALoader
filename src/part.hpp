@@ -426,6 +426,7 @@ static std::map <uint32_t, fpga_model> fpga_list = {
 	/* Lattice Crosslink-NX */
 	{0x010F0043, {"lattice", "CrosslinkNX", "LIFCL-17", 8}},
 	{0x010F1043, {"lattice", "CrosslinkNX", "LIFCL-40", 8}},
+	{0x010FB043, {"lattice", "CrosslinkNX", "LIFCL-33U", 8}},
 
 	/* Lattice Certus-NX */
 	{0x310F0043, {"lattice", "CertusNX", "LFD2NX-17", 8}},
