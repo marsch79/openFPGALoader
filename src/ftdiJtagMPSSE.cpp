@@ -58,8 +58,15 @@ FtdiJtagMPSSE::~FtdiJtagMPSSE()
 		0xaa, 0x55, 0x00, 0xff, 0xaa,
 		LOOPBACK_END
 	};
-	mpsse_store(tbuf, 16);
-	read = mpsse_read(tbuf, 5);
+	/* device is gone: nothing to flush */
+	if (_usb_lost)
+		return;
+	try {
+		mpsse_store(tbuf, 16);
+		read = mpsse_read(tbuf, 5);
+	} catch (std::exception &e) {
+		return;
+	}
 	if (read != 5)
 		fprintf(stderr,
 			"Loopback failed, expect problems on later runs %d\n", read);

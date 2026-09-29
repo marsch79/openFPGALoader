@@ -80,6 +80,7 @@ class FTDIpp_MPSSE {
 		int _buffer_size;
 		int _num;
 		unsigned char *_buffer;
+		bool _usb_lost;  // USB transfer failed (cable unplugged...)
 		uint8_t _iproduct[200];
 		uint8_t _imanufacturer[200];
 		uint8_t _iserialnumber[200];

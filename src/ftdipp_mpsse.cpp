@@ -32,7 +32,7 @@ FTDIpp_MPSSE::FTDIpp_MPSSE(const cable_t &cable, const std::string &dev,
 				_bus(cable.bus_addr), _addr(cable.device_addr),
 				_bitmode(BITMODE_RESET),
 				_interface(cable.config.interface),
-				_clkHZ(clkHZ), _buffer_size(2*32768), _num(0)
+				_clkHZ(clkHZ), _buffer_size(2*32768), _num(0), _buffer(NULL), _usb_lost(false)
 {
 	libusb_error ret;
 	char err[256];
@@ -123,9 +123,18 @@ FTDIpp_MPSSE::~FTDIpp_MPSSE()
 	char err[256];
 	int ret;
 
+	/* device is gone: nothing can be restored */
+	if (_usb_lost) {
+		free(_buffer);
+		return;
+	}
+
 	if (_bitmode == BITMODE_MPSSE) {
 		if (_cable.status_pin != -1) {
-			gpio_set(1 << _cable.status_pin);
+			try {
+				gpio_set(1 << _cable.status_pin);
+			} catch (std::exception &e) {
+			}
 		}
 	}
 
@@ -519,10 +528,20 @@ int FTDIpp_MPSSE::mpsse_write()
 	display("%s %d\n", __func__, _num);
 #endif
 
+	/* a previous transfer failed: don't retry again and again */
+	if (_usb_lost)
+		throw std::runtime_error("USB communication with cable lost");
+
 	if ((ret = ftdi_write_data(_ftdi, _buffer, _num)) != _num) {
 		printError("mpsse_write: fail to write with error " +
 				std::to_string(ret) + " (" +
 				std::string(ftdi_get_error_string(_ftdi)) + ")");
+		/* USB failure (cable unplugged, ...): abort */
+		if (ret < 0) {
+			_usb_lost = true;
+			_num = 0;
+			throw std::runtime_error("USB communication with cable lost");
+		}
 		return ret;
 	}
 
@@ -554,8 +573,9 @@ int FTDIpp_MPSSE::mpsse_read(unsigned char *rx_buff, int len)
 	do {
 		n = ftdi_read_data(_ftdi, p, len);
 		if (n < 0) {
-			fprintf(stderr, "Error: ftdi_read_data in %s", __func__);
-			return -1;
+			fprintf(stderr, "Error: ftdi_read_data in %s\n", __func__);
+			_usb_lost = true;
+			throw std::runtime_error("USB communication with cable lost");
 		}
 #ifdef DEBUG
 		if (_verbose) {
