@@ -8,9 +8,12 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <algorithm>
 #include <cmath>
 #include <map>
 #include <iostream>
+#include <utility>
+#include <vector>
 
 #include "progressBar.hpp"
 #include "display.hpp"
@@ -217,17 +220,16 @@ int SPIFlash::sectors_erase(int base_addr, int size)
 	}
 	int ret = 0;
 	int start_addr = base_addr;
-	/* compute end_addr to be multiple of 4Kb */
+	/* compute start/end_addr to be multiple of 4Kb */
 	int end_addr = (base_addr + size + 0xfff) & ~0xfff;
-	if (!subsector_rdy)
+	if (subsector_rdy)
+		start_addr = base_addr & ~0xfff;
+	else
 		end_addr = (base_addr + size + 0xffff) & ~0xffff;
 	ProgressBar progress("Erasing", end_addr, 50, _verbose < 0);
-	/* start with block size (64Kb) */
 	int step = 0x10000;
-	if (!sector_rdy)
-		step = 0x1000;
 
-	printf("start addr: %08x, end_addr: %08x\n", base_addr, (base_addr + size + 0xffff) & ~0xffff);
+	printf("start addr: %08x, end_addr: %08x\n", start_addr, end_addr);
 
 	for (int addr = start_addr; addr < end_addr; addr += step) {
 		if (write_enable() == -1) {
@@ -235,12 +237,18 @@ int SPIFlash::sectors_erase(int base_addr, int size)
 			break;
 		}
 
-		/* if block erase + addr end out of end_addr -> use sector_erase (4Kb) */
-		if (!sector_rdy || (addr + step > end_addr && subsector_rdy)) {
+		/* use block erase (64Kb) when supported, and, if sector erase (4Kb)
+		 * is also available, only for 64Kb aligned blocks fully inside
+		 * the area
+		 */
+		const bool use_block = sector_rdy && (!subsector_rdy ||
+			((addr & 0xffff) == 0 && addr + 0x10000 <= end_addr));
+		if (use_block) {
+			step = 0x10000;
+			ret = block64_erase(addr);
+		} else {
 			step = 0x1000;
 			ret = sector_erase(addr);
-		} else {
-			ret = block64_erase(addr);
 		}
 
 		if (ret == -1) {
@@ -258,6 +266,13 @@ int SPIFlash::sectors_erase(int base_addr, int size)
 		progress.fail();
 
 	return ret;
+}
+
+/* return true when all len Bytes are 0xff (erased flash state) */
+static bool is_blank(const uint8_t *data, int len)
+{
+	return std::all_of(data, data + len,
+		[](uint8_t b) { return b == 0xff; });
 }
 
 int SPIFlash::write_page(int addr, const uint8_t *data, int len)
@@ -490,9 +505,33 @@ bool SPIFlash::erase_and_prog(const std::vector<FlashDataSection> &sections, boo
 		if (bulk_erase(true, true) == -1)
 			return false;
 	} else {
-		printInfo("Erase Flash: ", false);
-		if (sectors_erase(base_addr, len) == -1)
-			return false;
+		/* erase each section's own area (sections may be non contiguous):
+		 * align to erase granularity and merge overlapping/adjacent areas
+		 */
+		const uint32_t align = (_flash_model && _flash_model->subsector_erase) ?
+			0x1000 : 0x10000;
+		std::vector<std::pair<uint32_t, uint32_t>> areas;
+		for (const FlashDataSection &sec: sections) {
+			if (sec.getLength() == 0)
+				continue;
+			const uint32_t start = sec.getStartAddr() & ~(align - 1);
+			const uint32_t end = (sec.getCurrentAddr() + align - 1) & ~(align - 1);
+			areas.emplace_back(start, end);
+		}
+		std::sort(areas.begin(), areas.end());
+		std::vector<std::pair<uint32_t, uint32_t>> merged;
+		for (const auto &area: areas) {
+			if (!merged.empty() && area.first <= merged.back().second)
+				merged.back().second = std::max(merged.back().second, area.second);
+			else
+				merged.push_back(area);
+		}
+
+		for (const auto &area: merged) {
+			printInfo("Erase Flash: ", false);
+			if (sectors_erase(area.first, area.second - area.first) == -1)
+				return false;
+		}
 	}
 
 	ProgressBar progress("Writing", len, 50, _verbose < 0);
@@ -508,7 +547,9 @@ bool SPIFlash::erase_and_prog(const std::vector<FlashDataSection> &sections, boo
 			if ((_jedec_id >> 8) == 0xbf258d) {
 				size = 1;
 			}
-			if (write_page(base_addr + addr, ptr, size) == -1)
+			/* erased flash already reads 0xff: nothing to write */
+			if (!is_blank(ptr, size) &&
+					write_page(base_addr + addr, ptr, size) == -1)
 				return false;
 			progress.display(len_done);
 		}
@@ -541,7 +582,9 @@ int SPIFlash::erase_and_prog(int base_addr, const uint8_t *data, int len)
 		if ((_jedec_id >> 8) == 0xbf258d) {
 			size = 1;
 		}
-		if (write_page(base_addr + addr, ptr, size) == -1)
+		/* erased flash already reads 0xff: nothing to write */
+		if (!is_blank(ptr, size) &&
+				write_page(base_addr + addr, ptr, size) == -1)
 			return -1;
 		progress.display(addr);
 	}

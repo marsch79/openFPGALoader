@@ -987,7 +987,7 @@ bool Lattice::program_extFlash(unsigned int offset, bool unprotect_flash)
 
 	if (_file_extension == "mcs") {
 		McsParser *parser = (McsParser *)_bit;
-		ret = FlashInterface::write(parser->getRecords(), unprotect_flash, true);
+		ret = FlashInterface::write(parser->getRecords(), unprotect_flash);
 	} else {
 		ret = FlashInterface::write(offset, _bit->getData(), _bit->getLength() / 8,
 			unprotect_flash);
