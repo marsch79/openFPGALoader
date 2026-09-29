@@ -627,8 +627,10 @@ bool SPIFlash::verify(const int &base_addr, const uint8_t *data,
 		for (int ii = 0; ii < rd_burst; ii++) {
 			if ((uint8_t)verify_data[ii] != data[i+ii]) {
 				progress.fail();
-				printError("Verification failed at " +
-						std::to_string(base_addr + i + ii));
+				char mess[64];
+				snprintf(mess, sizeof(mess), "Verification failed at 0x%08x",
+						base_addr + i + ii);
+				printError(mess);
 				return false;
 			}
 		}

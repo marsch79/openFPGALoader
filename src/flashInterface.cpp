@@ -187,12 +187,21 @@ bool FlashInterface::write(const std::vector<FlashDataSection>&sections,
 	/* test SPI */
 	try {
 		SPIFlash flash(this, unprotect_flash, _spif_verbose);
+		restore_flash_access_frequency();
 		flash.read_status_reg();
 		if (!flash.erase_and_prog(sections, full_erase))
 			ret = false;
-		if (_spif_verify && ret)
-			printInfo("Verify not supported in this mode");
-			//ret = flash.verify(offset, data, len, _spif_rd_burst);
+		if (_spif_verify && ret) {
+			for (const FlashDataSection &sec: sections) {
+				if (sec.getLength() == 0)
+					continue;
+				if (!flash.verify(sec.getStartAddr(), sec.getRecord().data(),
+						sec.getLength(), _spif_rd_burst)) {
+					ret = false;
+					break;
+				}
+			}
+		}
 	} catch (std::exception &e) {
 		printError(e.what());
 		ret = false;
