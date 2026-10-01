@@ -106,3 +106,24 @@ To generate ``.mcs`` file *PROM File* must be checked under *Exports Files* in *
 .. code-block:: bash
 
     openFPGALoader [-b yourBoard] [-c yourCable] project_name/*.mcs
+
+Dual boot on a larger flash (Nexus):
+
+In dual-boot mode, when the primary bitstream fails, a Nexus FPGA reads the
+backup *JUMP* record from ``0xFFFF00`` (24-bit addressing, FPGA-TN-02099). A
+3-byte-address SPI flash ignores the address bits above its size, so the FPGA
+reads the flash's last page. An ``.mcs`` built for a 32 Mbit map therefore
+carries the JUMP at ``0x3FFF00``, which a 64 Mbit flash never reads at fallback
+(it reads ``0x7FFF00``).
+
+``--dual-boot-jump-mirror`` keeps one ``.mcs`` usable on both sizes. After the
+``.mcs`` is written, it takes the MCS's own JUMP page (its last page, at
+``0xFFFF00`` modulo the MCS size rounded up to a power of two), and, when the
+detected flash is larger, writes that page to the flash's last page and reads it
+back. The page must start with the bitstream signature ``LSCC``, and the flash
+must be in the flash database, so its size is known. On a flash of the MCS's size
+nothing extra is written.
+
+.. code-block:: bash
+
+    openFPGALoader [-b yourBoard] [-c yourCable] -f --verify --dual-boot-jump-mirror project_name/*.mcs

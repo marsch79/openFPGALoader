@@ -126,6 +126,10 @@ class SPIFlash {
 				const int &len, int rd_burst = 0);
 		/* return status register value */
 		uint8_t read_status_reg();
+		/* capacity in bytes from the flash database, 0 when the part is unknown */
+		uint32_t capacity() const {
+			return _flash_model ? _flash_model->nr_sector * 0x10000 : 0;
+		}
 		/* display/info */
 		void display_status_reg(uint8_t reg);
 		void display_status_reg() {display_status_reg(read_status_reg());}

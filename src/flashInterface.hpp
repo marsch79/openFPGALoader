@@ -20,6 +20,26 @@
 
 class FlashDataSection;
 
+/*!
+ * \brief Lattice Nexus dual boot: where the backup JUMP must be on a flash.
+ *
+ * When the primary bitstream fails, the FPGA reads the backup JUMP record from
+ * 0xFFFF00 (24-bit mode, FPGA-TN-02099 section 6.1.2). A 3-byte-address SPI
+ * flash ignores the address bits above its size, so the FPGA really reads the
+ * flash's last page. One MCS built for a 4 MiB map therefore carries the JUMP
+ * at 0x3FFF00, which is correct on a 32 Mbit part but not read on a 64 Mbit
+ * part (0x7FFF00).
+ *
+ * Takes the MCS sections and the flash capacity, and returns the 256-byte JUMP
+ * page of the MCS (from its own size: the highest address rounded up to a power
+ * of two), its address and the address the FPGA reads on this flash. The page
+ * must start with the bitstream signature "LSCC".
+ * \return false with err set when the MCS has no such page or the sizes do not fit
+ */
+bool dual_boot_jump_plan(const std::vector<FlashDataSection> &sections,
+		uint32_t flash_capacity, uint8_t page[256], uint32_t *source_addr,
+		uint32_t *target_addr, std::string &err);
+
 class FlashInterface {
  public:
 	FlashInterface();
@@ -34,6 +54,13 @@ class FlashInterface {
 	bool set_quad_bit(bool set_quad);
 	bool bulk_erase_flash();
 	void set_filename(const std::string &filename) {_spif_filename = filename;}
+
+	/*!
+	 * \brief after an MCS write, also place the Lattice Nexus dual-boot
+	 *        backup JUMP where the FPGA reads it on the fitted flash
+	 *        (see dual_boot_jump_plan())
+	 */
+	void set_dual_boot_jump_mirror(bool enable) {_dual_boot_jump_mirror = enable;}
 
 	/*!
 	 * \brief write len byte into flash starting at offset,
@@ -127,6 +154,7 @@ class FlashInterface {
 	bool _spif_verify;
 	bool _skip_load_bridge;
 	bool _skip_reset; /*!< don't reset the device after write */
+	bool _dual_boot_jump_mirror = false; /*!< copy the dual-boot JUMP after an MCS write */
 
  private:
 	std::string _spif_filename;

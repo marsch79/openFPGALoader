@@ -3,6 +3,7 @@
  * Copyright (C) 2019 Gwenhael Goavec-Merou <gwenhael.goavec-merou@trabucayre.com>
  */
 
+#include <algorithm>
 #include <string.h>
 #include <unistd.h>
 
@@ -132,6 +133,7 @@ struct arguments {
 	bool read_xadc;
 	std::string read_register;
 	std::string user_flash;
+	bool dual_boot_jump_mirror = false;
 };
 
 int run_xvc_server(const struct arguments &args, const cable_t &cable,
@@ -191,6 +193,20 @@ int main(int argc, char **argv)
 		std::cout << "write to ram" << std::endl;
 	if (args.prg_type == Device::WR_FLASH)
 		std::cout << "write to flash" << std::endl;
+
+	if (args.dual_boot_jump_mirror) {
+		std::string ext = args.file_type;
+		if (ext.empty()) {
+			const size_t dot = args.bit_file.find_last_of('.');
+			if (dot != std::string::npos)
+				ext = args.bit_file.substr(dot + 1);
+		}
+		std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+		if (args.prg_type != Device::WR_FLASH || ext != "mcs") {
+			printError("Error: --dual-boot-jump-mirror needs -f (write-flash) and an MCS file");
+			return EXIT_FAILURE;
+		}
+	}
 
 	if (args.board[0] != '-') {
 		if (board_list.find(args.board) != board_list.end()) {
@@ -591,8 +607,10 @@ int main(int argc, char **argv)
 #endif
 		} else if (fab == "lattice") {
 #ifdef ENABLE_LATTICE_SUPPORT
-			fpga = new Lattice(jtag, args.bit_file, args.file_type,
+			Lattice *lattice = new Lattice(jtag, args.bit_file, args.file_type,
 				args.prg_type, args.flash_sector, args.verify, args.verbose, args.skip_load_bridge, args.skip_reset);
+			lattice->set_dual_boot_jump_mirror(args.dual_boot_jump_mirror);
+			fpga = lattice;
 #else
 			printError("Support for Lattice FPGAs was not enabled at compile time");
 			delete(jtag);
@@ -1049,6 +1067,11 @@ int parse_opt(int argc, char **argv, struct arguments *args,
 			("h,help", "Give this help list")
 			("verify", "Verify write operation (SPI Flash only)",
 				cxxopts::value<bool>(args->verify))
+			("dual-boot-jump-mirror",
+				"Lattice Nexus, with -f and an MCS file: also write the MCS's "
+				"dual-boot JUMP page to the last page of a larger flash, "
+				"where the FPGA reads it (for example 0x7FFF00 on 64 Mbit)",
+				cxxopts::value<bool>(args->dual_boot_jump_mirror))
 #ifdef ENABLE_XVC_SERVER
 			("xvc",   "Xilinx Virtual Cable Functions",
 				cxxopts::value<bool>(args->xvc))
