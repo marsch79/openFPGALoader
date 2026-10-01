@@ -103,6 +103,29 @@ static std::map <uint32_t, flash_t> flash_list = {
 		.quad_mask = (1 << 1),
 		.global_lock = false,
 	}},
+	{0x016017, {
+		/* S25FL064L, 64 Mbit FL-L, datasheet 002-12878 Rev. *E:
+		 * RDID 01h 60h 17h (Table 42); SR1V: SRP0 7, SEC 6, TBPROT 5
+		 * (rewritable non-volatile, not OTP), BP2..BP0 4..2 (section 7.5.1);
+		 * CR1V QUAD bit 1, read by RDCR1 35h (Table 11); 4 KB sector erase
+		 * 20h and 64 KB block erase. Unlike the 128/256 Mbit FL-L parts it has
+		 * only three BP bits, and TBPROT sits where those keep BP3. CMP
+		 * (CR1V bit 6) also affects the protected range and is not modelled. */
+		.manufacturer = "spansion",
+		.model = "S25FL064L",
+		.nr_sector = 128,
+		.sector_erase = true,
+		.subsector_erase = true,
+		.has_extended = true,
+		.tb_otp = false,
+		.tb_offset = (1 << 5),
+		.tb_register = STATR,
+		.bp_len = 3,
+		.bp_offset = {(1 << 2), (1 << 3), (1 << 4), 0},
+		.quad_register = CONFR,
+		.quad_mask = (1 << 1),
+		.global_lock = false,
+	}},
 	{0x016018, {
 		/* https://www.infineon.com/dgdl/Infineon-S25FL128L_S25FL256L_128_Mb_16_MB_256_Mb_32_MB_FL-L_flash_SPI_multi-I_O_3-DataSheet-v13_00-EN.pdf?fileId=8ac78c8c7d0d8da4017d0ed40e335224 */
 		.manufacturer = "spansion",
