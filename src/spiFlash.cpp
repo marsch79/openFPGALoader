@@ -343,9 +343,12 @@ bool SPIFlash::dump(const std::string &filename, const int &base_addr,
 	if (rd_burst == 0)
 		rd_burst = len;
 
-	/* segfault with buffer > 1M */
-	if (rd_burst > 0x100000)
-		rd_burst = 0x100000;
+	/* read() and some spi_put() implementations (e.g. Lattice) hold the
+	 * transfer in stack arrays, several times rd_burst in total; 1 MiB
+	 * bursts overflow the 1 MiB default stack on Windows. Same cap as
+	 * verify(). */
+	if (rd_burst > 65536)
+		rd_burst = 65536;
 
 	std::string data;
 	data.resize(rd_burst);
