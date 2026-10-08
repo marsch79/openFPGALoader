@@ -559,7 +559,7 @@ static std::map <uint32_t, flash_t> flash_list = {
 		/* https://www.macronix.com/Lists/Datasheet/Attachments/8933/MX25L3233F,%203V,%2032Mb,%20v1.7.pdf */
 		.manufacturer = "Macronix",
 		.model = "MX25L3233F",
-		.nr_sector = 256,
+		.nr_sector = 64,  /* 32 Mbit = 4 MiB = 64 x 64 KiB */
 		.sector_erase = true,
 		.subsector_erase = true,
 		.has_extended = false,
