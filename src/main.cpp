@@ -1086,7 +1086,7 @@ int parse_opt(int argc, char **argv, struct arguments *args,
 				cxxopts::value<bool>(args->read_dna))
 			("X,read-xadc", "Read XADC (Xilinx FPGA only)",
 				cxxopts::value<bool>(args->read_xadc))
-			("read-register", "Read Status Register(Xilinx FPGA only)",
+			("read-register", "Read Status Register (Xilinx FPGA, Lattice: status)",
 				cxxopts::value<std::string>(args->read_register))
 			("user-flash", "User flash file (Gowin LittleBee FPGA only)",
 				cxxopts::value<std::string>(args->user_flash))

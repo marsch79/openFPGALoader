@@ -12,6 +12,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <iomanip>
 #include <iostream>
 #include <list>
@@ -1232,6 +1233,20 @@ int Lattice::get_statusreg_size(){
 	} else{
 		return 32;
 	}
+}
+
+bool Lattice::read_register(const std::string reg_name)
+{
+	std::string name = reg_name;
+	std::transform(name.begin(), name.end(), name.begin(), ::tolower);
+	if (name != "status") {
+		printError("Unknown register " + reg_name + " (supported: status)");
+		return false;
+	}
+	/* LSC_READ_STATUS works outside ISC mode: the device stays in user
+	 * mode and the register keeps the result of the last configuration */
+	displayReadReg(readStatusReg());
+	return true;
 }
 
 /* feabits is MSB first

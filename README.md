@@ -134,7 +134,8 @@ openFPGALoader -- a program to flash FPGA
       --conmcu                  Connect JTAG to MCU
   -D, --read-dna                Read DNA (Xilinx FPGA only)
   -X, --read-xadc               Read XADC (Xilinx FPGA only)
-      --read-register arg       Read Status Register(Xilinx FPGA only)
+      --read-register arg       Read Status Register (Xilinx FPGA, Lattice:
+                                status)
       --user-flash arg          User flash file (Gowin LittleBee FPGA only)
   -V, --version                 Print program version
       --Version                 Print program version (Deprecated)

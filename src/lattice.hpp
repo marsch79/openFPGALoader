@@ -30,6 +30,14 @@ class Lattice: public Device, FlashInterface {
 		int userCode();
 		bool write_userCode(uint32_t usercode);
 		void reset() override;
+		/*!
+		 * \brief read and decode a configuration engine register
+		 *        without entering ISC mode, so the running design
+		 *        is not disturbed
+		 * \param[in] reg_name: "status" (LSC_READ_STATUS)
+		 * \return false for an unknown register name
+		 */
+		bool read_register(const std::string reg_name) override;
 		void program(unsigned int offset, bool unprotect_flash) override;
 		bool program_mem();
 		bool program_flash(unsigned int offset, bool unprotect_flash);
